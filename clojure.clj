@@ -85,10 +85,10 @@
       ([dir arena self]
         (println (:x self))
         (def shootable (case dir
-            "n" #(and (= (:x self) (:x %)) (> (mod (- (:y self) 5 ) 10) (mod (:y %) 10)))
-            "e" #(and (= (:y self) (:y %)) (< (mod (+ (:x self) 5 ) 10) (mod (:x %) 10)))
-            "s" #(and (= (:x self) (:x %)) (< (mod (+ (:y self) 5 ) 10) (mod (:y %) 10)))
-            "w" #(and (= (:y self) (:y %)) (> (mod (- (:x self) 5 ) 10) (mod (:x %) 10)))
+            "n" #(and (= (:x self) (:x %)) (>= 5 (mod (- (:y self) (:y %)) 20)))
+            "e" #(and (= (:y self) (:y %)) (>= 5 (mod (- (:x %) (:x self)) 20)))
+            "s" #(and (= (:x self) (:x %)) (>= 5 (mod (- (:y %) (:y self)) 20)))
+            "w" #(and (= (:y self) (:y %)) (>= 5 (mod (- (:x self) (:x %)) 20)))
             #(false)))
         (let [shootable
               (filter shootable (filter-arena arena "wood-barrier" "steel-barrier" "zakano" "wombat"))]
