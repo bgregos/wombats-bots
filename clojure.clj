@@ -7,13 +7,13 @@
   
   (defn add-locs
     "Add local :x and :y coordinates to state matrix"
-    [state]
+    [arena]
     (reduce 
       #(conj %1 
         (reduce 
           (fn [acc node] (conj acc (assoc node :x (count acc) :y (count %1))))
           [] %2))
-      [] state))
+      [] arena))
   
   (defn in?
       "Return true if coll contains elem"
@@ -45,7 +45,7 @@
                       (or (< (:x node) (:x self-node)) (>= (- (:x node) arena-half) (:x self-node))))
               "n" (if (<= arena-half (:y self-node))
                       (and (> (:y self-node) (:y node)) (>= (:y node) (- (:y self-node) arena-half)))
-                      (or (< (:y node) (:y self-node)) (>= (- (:y node) arena-half) (:t self-node))))
+                      (or (< (:y node) (:y self-node)) (>= (- (:y node) arena-half) (:y self-node))))
               "e" (if (>= arena-half (:x self-node))
                       (and (< (:x self-node) (:x node)) (<= (:x node) (+ (:x self-node) arena-half)))
                       (or (> (:x node) (:x self-node)) (>= (- (:x self-node) arena-half) (:x node))))
@@ -83,13 +83,16 @@
   (defn can-shoot?
       "Returns true if there is a barrier, Zakano, or Wombat within shooting range"
       ([dir arena self]
+        (println (:x self))
         (def shootable (case dir
-            "n" #(and (facing dir % self) (> (mod (:y %) 10) (mod (- (:y self) 5 ) 10)))
-            "e" #(and (facing dir % self) (< (mod (:x %) 10) (mod (+ (:x self) 5 ) 10)))
-            "s" #(and (facing dir % self) (< (mod (:y %) 10) (mod (+ (:y self) 5 ) 10)))
-            "w" #(and (facing dir % self) (> (mod (:x %) 10) (mod (- (:x self) 5 ) 10)))
-            false))
-        (filter shootable (filter-arena arena "wood-barrier" "steel-barrier" "zakano" "wombat")))
+            "n" #(and (= (:x self) (:x %)) (> (mod (- (:y self) 5 ) 10) (mod (:y %) 10)))
+            "e" #(and (= (:y self) (:y %)) (< (mod (+ (:x self) 5 ) 10) (mod (:x %) 10)))
+            "s" #(and (= (:x self) (:x %)) (< (mod (+ (:y self) 5 ) 10) (mod (:y %) 10)))
+            "w" #(and (= (:y self) (:y %)) (> (mod (- (:x self) 5 ) 10) (mod (:x %) 10)))
+            #(false)))
+        (let [shootable
+              (filter shootable (filter-arena arena "wood-barrier" "steel-barrier" "zakano" "wombat"))]
+            (filter #(not (and (= (:x %) (:x self)) (= (:y self) (:y %)))) shootable)))
       ([dir arena] (can-shoot? dir arena {:x 3 :y 3})))
   
   (def possible-points 
@@ -108,5 +111,5 @@
      
      
      :state {:direction (get-direction (:arena state))
-             :shootable (can-shoot? (get-direction (:arena state)) (:arena state))
+             :shootable (can-shoot? (get-direction (:arena state)) (add-locs (:arena state)))
              :distance (distance-to-tile (get-direction (:arena state)) {:x 4 :y 3})}}))
