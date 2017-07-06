@@ -1,9 +1,26 @@
 (fn [state time-left]
   (def turn-directions [:right :left :about-face])
   (def smoke-directions [:forward :backward :left :right :drop])
+  (def game-parameters
+  {;; HP Modifiers
+   :collision-hp-damage 10
+   :food-hp-bonus 5
+   :poison-hp-damage 10
+   ;; Score Modifiers
+   :food-score-bonus 10
+   :wombat-hit-bonus 10
+   :zakano-hit-bonus 8
+   :steel-barrier-hit-bonus 2
+   :wood-barrier-hit-bonus 2
+   :wombat-destroyed-bonus 25
+   :zakano-destroyed-bonus 15
+   :wood-barrier-destroyed-bonus 3
+   :steel-barrier-destroyed-bonus 25
+   ;; In game parameters
+   :shot-distance 5})
   (def arena-size 20)
   (def arena-half (/ arena-size 2))
-  (def shot-range 5)
+  (def shot-range (:shot-distance game-parameters))
   
   (defn add-locs
     "Add local :x and :y coordinates to state matrix"
@@ -85,19 +102,28 @@
       ([dir arena self]
         (println (:x self))
         (def shootable (case dir
-            "n" #(and (= (:x self) (:x %)) (>= 5 (mod (- (:y self) (:y %)) 20)))
-            "e" #(and (= (:y self) (:y %)) (>= 5 (mod (- (:x %) (:x self)) 20)))
-            "s" #(and (= (:x self) (:x %)) (>= 5 (mod (- (:y %) (:y self)) 20)))
-            "w" #(and (= (:y self) (:y %)) (>= 5 (mod (- (:x self) (:x %)) 20)))
+            "n" #(and (= (:x self) (:x %)) (>= shot-range (mod (- (:y self) (:y %)) arena-size)))
+            "e" #(and (= (:y self) (:y %)) (>= shot-range (mod (- (:x %) (:x self)) arena-size)))
+            "s" #(and (= (:x self) (:x %)) (>= shot-range (mod (- (:y %) (:y self)) arena-size)))
+            "w" #(and (= (:y self) (:y %)) (>= shot-range (mod (- (:x self) (:x %)) arena-size)))
             #(false)))
         (let [shootable
               (filter shootable (filter-arena arena "wood-barrier" "steel-barrier" "zakano" "wombat"))]
             (filter #(not (and (= (:x %) (:x self)) (= (:y self) (:y %)))) shootable)))
       ([dir arena] (can-shoot? dir arena {:x 3 :y 3})))
   
+  (defn build-resp
+      "Helper method to construct the return command"
+      ([action direction]
+        {:action (keyword action)
+         :metadata {:direction (keyword direction)}})
+      ([action] {:action (keyword action)
+                 :metadata {}}))
+  
   (def possible-points 
     (filter-arena (add-locs (get-in state [:arena])) 
                   "food" "wood-barrier" "zakano" "wombat"))
+  
   (let [command-options [(repeat 0 {:action :move
                                      :metadata {}})
                          (repeat 1 {:action :turn
@@ -107,9 +133,7 @@
                          (repeat 0 {:action :smoke
                                     :metadata {:direction (rand-nth smoke-directions)}})]]
 
-    {:command (rand-nth (flatten command-options))
-     
-     
+    {:command (build-resp :turn :left)
      :state {:direction (get-direction (:arena state))
              :shootable (can-shoot? (get-direction (:arena state)) (add-locs (:arena state)))
              :distance (distance-to-tile (get-direction (:arena state)) {:x 4 :y 3})}}))
