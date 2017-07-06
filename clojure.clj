@@ -109,7 +109,7 @@
             #(false)))
         (let [shootable
               (filter shootable (filter-arena arena "wood-barrier" "steel-barrier" "zakano" "wombat"))]
-            (filter #(not (and (= (:x %) (:x self)) (= (:y self) (:y %)))) shootable)))
+            (not (empty? (filter #(not (and (= (:x %) (:x self)) (= (:y self) (:y %)))) shootable)))))
       ([dir arena] (can-shoot? dir arena {:x 3 :y 3})))
   
   (defn build-resp
@@ -122,7 +122,14 @@
   
   (def possible-points 
     (filter-arena (add-locs (get-in state [:arena])) 
-                  "food" "wood-barrier" "zakano" "wombat"))
+                  "food" "wood-barrier" "steel-barrier" "zakano" "wombat"))
+              
+  (defn pick-move
+      "Select the move to give the highest amount of points"
+      [arena self]
+      (if (can-shoot? (get-direction arena) (add-locs arena))
+          (build-resp :shoot)
+          (build-resp :turn :left)))
   
   (let [command-options [(repeat 0 {:action :move
                                      :metadata {}})
@@ -133,7 +140,7 @@
                          (repeat 0 {:action :smoke
                                     :metadata {:direction (rand-nth smoke-directions)}})]]
 
-    {:command (build-resp :turn :left)
+    {:command (pick-move (:arena state) {:x 3 :y 3})
      :state {:direction (get-direction (:arena state))
              :shootable (can-shoot? (get-direction (:arena state)) (add-locs (:arena state)))
              :distance (distance-to-tile (get-direction (:arena state)) {:x 4 :y 3})}}))
