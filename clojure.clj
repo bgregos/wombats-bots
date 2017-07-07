@@ -76,7 +76,7 @@
       ([dir node self-node]
         (+ (Math/abs (- (:y node) (:y self-node)))
            (Math/abs (- (:x node) (:x self-node)))
-           (if (facing dir node self-node) 0 1)))
+           (if (facing? dir node self-node) 0 1)))
       ([dir node]
         (distance-to-tile dir node {:x 3 :y 3})))
 
