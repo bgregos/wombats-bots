@@ -18,7 +18,7 @@
    :steel-barrier-destroyed-bonus 25
    ;; In game parameters
    :shot-distance 5})
-  (def arena-size 20)
+  (def arena-size (first (:global-dimensions state)))
   (def arena-half (/ arena-size 2))
   (def shot-range (:shot-distance game-parameters))
   
@@ -49,7 +49,7 @@
       [arena]
       (get-in (nth (nth arena 3) 3) [:contents :orientation]))
   
-  (defn facing
+  (defn facing?
       "Returns true if a move forward will bring you closer to desired location
       If no self coordinates are provided, use distance from {:x 3 :y 3}"
       ([dir node self-node]
@@ -68,7 +68,7 @@
                       (or (> (:x node) (:x self-node)) (>= (- (:x self-node) arena-half) (:x node))))
               nil))
       ([dir node]
-        (facing dir node {:x 3 :y 3})))
+        (facing? dir node {:x 3 :y 3})))
   
   (defn distance-to-tile
       "Get the number of moves it would take to move from current location.
@@ -100,7 +100,6 @@
   (defn can-shoot?
       "Returns true if there is a barrier, Zakano, or Wombat within shooting range"
       ([dir arena self]
-        (println (:x self))
         (def shootable (case dir
             "n" #(and (= (:x self) (:x %)) (>= shot-range (mod (- (:y self) (:y %)) arena-size)))
             "e" #(and (= (:y self) (:y %)) (>= shot-range (mod (- (:x %) (:x self)) arena-size)))
@@ -120,16 +119,58 @@
       ([action] {:action (keyword action)
                  :metadata {}}))
   
-  (def possible-points 
-    (filter-arena (add-locs (get-in state [:arena])) 
-                  "food" "wood-barrier" "steel-barrier" "zakano" "wombat"))
-              
+  (defn possible-points
+      "Get all locations with possible points"
+      ([arena self]
+        (filter #(not (and (= (:x %) (:x self)) (= (:y %) (:y self))))
+                (filter-arena (add-locs arena) 
+                               "food" "wood-barrier" "steel-barrier" "zakano" "wombat")))
+      ([arena]
+        (possible-points arena {:x 3 :y 3})))
+    
+  (defn front-tile
+      "Returns a map containing {:x x, :y y}, where x and y are the coordinated directly in front"
+      ([dir self]
+        (case dir
+          "n" {:x (:x self) :y (mod (dec (:y self)) 20)}
+          "e" {:x (mod (inc (:x self)) 20) :y (:y self)}
+          "s" {:x (:x self) :y (mod (inc (:y self)) 20)}
+          "w" {:x (mod (dec (:x self)) 20) :y (:y self)}))
+      ([dir] front-tile dir {:x 3 :y 3}))
+  
+  (defn is-clear?
+      "Return true if you can move forward without a collision or poison"
+      [arena {x :x y :y}]
+      (not (in? (get-in (nth (nth arena y) x) [:contents :type])
+                ["zakano" "wombat" "wood-barrier" "steel-barrier" "poison"])))
+      
+  (defn new-direction
+      "Pick new direction to turn"
+      [dir loc self]
+      (def ^:private orientations ["n" "e" "s" "w"])
+      (let [available (remove #(= % dir) orientations)
+            positions (filter #(facing? % loc self) available)]
+            (if (not (empty? positions))
+                (turn-to-dir dir (first positions))
+                ; TODO improve this logic
+                :left)))
+
+  (defn move-to
+      "Take the best action to get to given space"
+      ([arena dir loc self]
+        (def ^:private orientations ["n" "e" "s" "w"])
+        (if (and (facing? dir loc self) (is-clear? arena (front-tile dir self)))
+            (build-resp :move)
+            (build-resp :turn (new-direction dir loc self))))
+      ([arena dir loc]
+        (move-to dir arena loc {:x 3 :y 3})))
+    
   (defn pick-move
       "Select the move to give the highest amount of points"
       [arena self]
       (if (can-shoot? (get-direction arena) (add-locs arena))
           (build-resp :shoot)
-          (build-resp :turn :left)))
+          (move-to arena (get-direction arena) {:x 0 :y 0} self)))
   
   (let [command-options [(repeat 0 {:action :move
                                      :metadata {}})
@@ -141,6 +182,7 @@
                                     :metadata {:direction (rand-nth smoke-directions)}})]]
 
     {:command (pick-move (:arena state) {:x 3 :y 3})
-     :state {:direction (get-direction (:arena state))
+     :state {:move (pick-move (:arena state) {:x 3 :y 3})
+             :direction (get-direction (:arena state))
              :shootable (can-shoot? (get-direction (:arena state)) (add-locs (:arena state)))
              :distance (distance-to-tile (get-direction (:arena state)) {:x 4 :y 3})}}))
