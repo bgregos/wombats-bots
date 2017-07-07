@@ -79,12 +79,7 @@
            (if (facing dir node self-node) 0 1)))
       ([dir node]
         (distance-to-tile dir node {:x 3 :y 3})))
-    
-  (defn clear?
-      "Returns true if given tile is open or contains food"
-      [tile]
-      (in? (get-in tile [:contents :type]) ["open" "food"]))
-  
+
   (defn turn-to-dir
       "Returns one of [:right :left :about-face]"
       [curr-dir next-dir]
@@ -165,12 +160,20 @@
       ([arena dir loc]
         (move-to dir arena loc {:x 3 :y 3})))
     
+  (defn select-target
+      "Pulls the coordinates of the closest point source to the player"
+      ([arena self]
+        (let [possible (possible-points arena self)
+              direction (get-direction arena)]
+             (first (sort-by :dist (map #(assoc % :dist (distance-to-tile direction % self)) possible)))))
+      ([arena] (select-target arena {:x 3 :y 3})))
+    
   (defn pick-move
       "Select the move to give the highest amount of points"
       [arena self]
       (if (can-shoot? (get-direction arena) (add-locs arena))
           (build-resp :shoot)
-          (move-to arena (get-direction arena) {:x 0 :y 0} self)))
+          (move-to arena (get-direction arena) (select-target arena self) self)))
   
   (let [command-options [(repeat 0 {:action :move
                                      :metadata {}})
