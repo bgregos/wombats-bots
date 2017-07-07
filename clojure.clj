@@ -175,17 +175,8 @@
           (build-resp :shoot)
           (move-to arena (get-direction arena) (select-target arena self) self)))
   
-  (let [command-options [(repeat 0 {:action :move
-                                     :metadata {}})
-                         (repeat 1 {:action :turn
-                                    :metadata {:direction (rand-nth turn-directions)}})
-                         (repeat 0 {:action :shoot
-                                      :metadata {}})
-                         (repeat 0 {:action :smoke
-                                    :metadata {:direction (rand-nth smoke-directions)}})]]
-
     {:command (pick-move (:arena state) {:x 3 :y 3})
      :state {:move (pick-move (:arena state) {:x 3 :y 3})
              :direction (get-direction (:arena state))
              :shootable (can-shoot? (get-direction (:arena state)) (add-locs (:arena state)))
-             :distance (distance-to-tile (get-direction (:arena state)) {:x 4 :y 3})}}))
+             :distance (distance-to-tile (get-direction (:arena state)) {:x 4 :y 3})}})
