@@ -198,6 +198,12 @@
              (first (sort-by :dist (map #(assoc % :dist (distance-to-tile direction % self)) possible)))))
       ([arena] (select-target arena {:x 3 :y 3})))
 
+  (defn use-2block-sight
+      "Cut the arena down to 5x5 from 7x7"
+      ([arena]
+        
+      )
+
   (defn pick-move
       "Select the move to give the highest amount of points"
       [arena self]
@@ -206,7 +212,7 @@
           (if (empty? (filter-arena arena "food"))
               (if (can-shoot-barrier? (get-direction arena) (add-locs arena))
                   (build-resp :shoot)
-                  (move-to arena (get-direction arena) (select-target arena self) self))
+                  (move-to arena (get-direction arena) (select-target (use-2block-sight arena) self) self))
               (move-to arena (get-direction arena) (select-target-nowall arena self) self))))
 
     {:command (pick-move (:arena state) {:x 3 :y 3})
