@@ -104,7 +104,7 @@
         (let [shootable
               (filter shootable (filter-arena arena "zakano" "wombat"))]
             (not (empty? (filter #(not (and (= (:x %) (:x self)) (= (:y self) (:y %)))) shootable)))))
-      ([dir arena] (can-shoot? dir arena {:x 3 :y 3})))
+      ([dir arena] (can-shoot-enemy? dir arena {:x 3 :y 3})))
   (defn can-shoot-barrier?
       "Returns true if there is a barrier within shooting range"
       ([dir arena self]
@@ -117,7 +117,7 @@
         (let [shootable
               (filter shootable (filter-arena arena "wood-barrier" "steel-barrier"))]
             (not (empty? (filter #(not (and (= (:x %) (:x self)) (= (:y self) (:y %)))) shootable)))))
-      ([dir arena] (can-shoot? dir arena {:x 3 :y 3})))
+      ([dir arena] (can-shoot-barrier? dir arena {:x 3 :y 3})))
 
   (defn build-resp
       "Helper method to construct the return command"
@@ -198,19 +198,25 @@
              (first (sort-by :dist (map #(assoc % :dist (distance-to-tile direction % self)) possible)))))
       ([arena] (select-target arena {:x 3 :y 3})))
 
+  (defn use-2block-sight
+      "Cut the arena down to 5x5 from 7x7"
+      ([arena]
+        
+      )
+
   (defn pick-move
       "Select the move to give the highest amount of points"
       [arena self]
       (if (can-shoot-enemy? (get-direction arena) (add-locs arena))
           (build-resp :shoot)
           (if (empty? (filter-arena arena "food"))
-              (if (can-shoot-wall? (get-direction arena) (add-locs arena))
+              (if (can-shoot-barrier? (get-direction arena) (add-locs arena))
                   (build-resp :shoot)
-                  (move-to arena (get-direction arena) (select-target arena self) self))
-              (move-to arena (get-direction arena) (select-target-nowall arena self) self)))
+                  (move-to arena (get-direction arena) (select-target (use-2block-sight arena) self) self))
+              (move-to arena (get-direction arena) (select-target-nowall arena self) self))))
 
     {:command (pick-move (:arena state) {:x 3 :y 3})
      :state {:move (pick-move (:arena state) {:x 3 :y 3})
              :direction (get-direction (:arena state))
-             :shootable (can-shoot? (get-direction (:arena state)) (add-locs (:arena state)))
+             :shootable (can-shoot-enemy? (get-direction (:arena state)) (add-locs (:arena state)))
              :distance (distance-to-tile (get-direction (:arena state)) {:x 4 :y 3})}})
