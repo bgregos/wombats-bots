@@ -30,15 +30,37 @@
 
   (defn add-to-state
       "Update the global saved state with the given element and position"
-      [matrix elem {x :x y :y}]
-      (assoc matrix x (assoc (nth matrix x) y elem)))
+      [matrix elem]
+      (let [x (:x elem) 
+            y (:y elem)]
+        (assoc matrix y (assoc (nth matrix y) x elem))))
   
   (defn merge-global-state
       "Add local state vision to global saved state. Position is that of the play which corresponds to (3,3) in local matrix"
       [global-state local-state]
-        (let [local-nodes ((comp flatten add-locs) local-state)]
-          (reduce #(add-to-state %1 %2 {:x (:x %2) :y (:y %2)}) global-state local-nodes)))
+        (let [local-nodes (filter-arena ((comp add-locs :arena) local-state)
+                                        "food" "poison" "open" "wood-barrier" "steel-barrier")
+              x-offset (mod (- (first (:global-coords local-state)) 3) arena-size)
+              y-offset (mod (- (second (:global-coords local-state)) 3) arena-size)
+              self      {:contents {:type "open"} 
+                         :x (first (:global-coords local-state)) 
+                         :y (second (:global-coords local-state))}]
+          (add-to-state (reduce #(
+                    let [x (mod (+ (:x %2) x-offset) arena-size)
+                         y (mod (+ (:y %2) y-offset) arena-size)
+                         elem (merge %2 {:x x :y y})]
+                    (add-to-state %1 elem)) global-state local-nodes) self)))
+                
 
+  (defn get-global-state
+      "Tries to fetch global arena from the saved state or constructs a new one"
+      [state & path]
+      (let [saved (get-in state path)
+            size  (first (:global-dimensions state))]
+        (if (nil? saved)
+          (build-initial-global-state size)
+          saved )))
+  
   (defn add-locs
     "Add local :x and :y coordinates to state matrix"
     [arena]
@@ -167,10 +189,10 @@
       "Returns a map containing {:x x, :y y}, where x and y are the coordinated directly in front"
       ([dir self]
         (case dir
-          "n" {:x (:x self) :y (mod (dec (:y self)) 20)}
-          "e" {:x (mod (inc (:x self)) 20) :y (:y self)}
-          "s" {:x (:x self) :y (mod (inc (:y self)) 20)}
-          "w" {:x (mod (dec (:x self)) 20) :y (:y self)}))
+          "n" {:x (:x self) :y (mod (dec (:y self)) arena-size)}
+          "e" {:x (mod (inc (:x self)) arena-size) :y (:y self)}
+          "s" {:x (:x self) :y (mod (inc (:y self)) arena-size)}
+          "w" {:x (mod (dec (:x self)) arena-size) :y (:y self)}))
       ([dir] front-tile dir {:x 3 :y 3}))
 
   (defn is-clear?
@@ -220,7 +242,7 @@
       "Cut the arena down to 5x5 from 7x7"
       [arena]
       (take 5 (rest (map #(take 5 (rest %)) arena))))
-
+  
   (defn pick-move
       "Select the move to give the highest amount of points"
       [arena self]
@@ -232,8 +254,11 @@
                   (move-to arena (get-direction arena) (select-target arena self) self))
               (move-to arena (get-direction arena) (select-target-nowall arena self) self))))
 
+    ;{:command (build-resp :turn :left)
     {:command (pick-move (:arena state) {:x 3 :y 3})
      :state {:move (pick-move (:arena state) {:x 3 :y 3})
+             :saved (merge-global-state (get-global-state state :saved-state :saved) state)
              :direction (get-direction (:arena state))
              :shootable (can-shoot-enemy? (get-direction (:arena state)) (add-locs (:arena state)))
              :distance (distance-to-tile (get-direction (:arena state)) {:x 4 :y 3})}})
+             
