@@ -21,6 +21,23 @@
   (def arena-size (first (:global-dimensions state)))
   (def arena-half (/ arena-size 2))
   (def shot-range (:shot-distance game-parameters))
+  
+  (defn build-initial-global-state
+      "Constructs an initial global state populated by fog"
+      [global-size]
+      (add-locs (into [] (map (fn [_] 
+         (into [] (map (fn [_] {:type "fog"}) (range global-size)))) (range global-size)))))
+
+  (defn add-to-state
+      "Update the global saved state with the given element and position"
+      [matrix elem {x :x y :y}]
+      (assoc matrix x (assoc (nth matrix x) y elem)))
+  
+  (defn merge-global-state
+      "Add local state vision to global saved state. Position is that of the play which corresponds to (3,3) in local matrix"
+      [global-state local-state]
+        (let [local-nodes ((comp flatten add-locs) local-state)]
+          (reduce #(add-to-state %1 %2 {:x (:x %2) :y (:y %2)}) global-state local-nodes)))
 
   (defn add-locs
     "Add local :x and :y coordinates to state matrix"
