@@ -21,6 +21,28 @@
   (def arena-size (first (:global-dimensions state)))
   (def arena-half (/ arena-size 2))
   (def shot-range (:shot-distance game-parameters))
+
+  (defn in?
+      "Return true if coll contains elem"
+      [elem coll]
+      (some #(= elem %) coll))
+  
+  (defn add-locs
+    "Add local :x and :y coordinates to state matrix"
+    [arena]
+    (reduce
+      #(conj %1
+        (reduce
+          (fn [acc node] (conj acc (assoc node :x (count acc) :y (count %1))))
+          [] %2))
+      [] arena))
+
+  (defn filter-arena
+      "Filter the arena to return only nodes that contain one of the given type"
+      ([arena] (flatten arena))
+      ([arena & filters]
+      (let [node-list (flatten arena)]
+        (filter #(in? (get-in % [:contents :type]) filters) node-list))))
   
   (defn build-initial-global-state
       "Constructs an initial global state populated by fog"
@@ -60,28 +82,6 @@
         (if (nil? saved)
           (build-initial-global-state size)
           saved )))
-  
-  (defn add-locs
-    "Add local :x and :y coordinates to state matrix"
-    [arena]
-    (reduce
-      #(conj %1
-        (reduce
-          (fn [acc node] (conj acc (assoc node :x (count acc) :y (count %1))))
-          [] %2))
-      [] arena))
-
-  (defn in?
-      "Return true if coll contains elem"
-      [elem coll]
-      (some #(= elem %) coll))
-
-  (defn filter-arena
-      "Filter the arena to return only nodes that contain one of the given type"
-      ([arena] (flatten arena))
-      ([arena & filters]
-      (let [node-list (flatten arena)]
-        (filter #(in? (get-in % [:contents :type]) filters) node-list))))
 
   (defn get-direction
       "Get the current direction of your wombat from the 2d arena array"
@@ -254,7 +254,6 @@
                   (move-to arena (get-direction arena) (select-target arena self) self))
               (move-to arena (get-direction arena) (select-target-nowall arena self) self))))
 
-    ;{:command (build-resp :turn :left)
     {:command (pick-move (:arena state) {:x 3 :y 3})
      :state {:move (pick-move (:arena state) {:x 3 :y 3})
              :saved (merge-global-state (get-global-state state :saved-state :saved) state)
