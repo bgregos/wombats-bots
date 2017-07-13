@@ -11,8 +11,8 @@
           (if (empty? (filter-arena (focus-sight arena) "food"))
               (if (can-shoot-barrier? (get-direction arena) (add-locs arena) arena-size shot-range)
                   (build-resp :shoot)
-                  (move-to arena arena-half (get-direction arena) (select-target arena self) self))
-              (move-to arena arena-half (get-direction arena) (select-target-nowall arena self) self))))
+                  (move-to arena arena-half (get-direction arena) (select-target arena arena-half self) self))
+              (move-to arena arena-half (get-direction arena) (select-target-nowall arena arena-half self) self))))
 
     {:command (pick-move (:arena state) {:x 3 :y 3})
      :state {:move (pick-move (:arena state) {:x 3 :y 3})
