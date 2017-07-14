@@ -19,5 +19,5 @@
              :saved (merge-global-state (get-global-state state :saved-state :saved) state arena-size)
              :direction (get-direction (:arena state))
              :shootable (can-shoot-enemy? (get-direction (:arena state)) (add-locs (:arena state)) arena-size shot-range)
-             :distance (distance-to-tile (get-direction (:arena state)) {:x 4 :y 3})}})
+             :distance (distance-to-tile (get-direction (:arena state)) {:x 4 :y 3} arena-half)}})
              
