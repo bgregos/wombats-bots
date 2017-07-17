@@ -22,11 +22,6 @@
   (def arena-half (/ arena-size 2))
   (def shot-range (:shot-distance game-parameters))
 
-  (defn in?
-      "Return true if coll contains elem"
-      [elem coll]
-      (some #(= elem %) coll))
-  
   (defn add-locs
     "Add local :x and :y coordinates to state matrix"
     [arena]
@@ -37,51 +32,17 @@
           [] %2))
       [] arena))
 
+  (defn in?
+      "Return true if coll contains elem"
+      [elem coll]
+      (some #(= elem %) coll))
+
   (defn filter-arena
       "Filter the arena to return only nodes that contain one of the given type"
       ([arena] (flatten arena))
       ([arena & filters]
       (let [node-list (flatten arena)]
         (filter #(in? (get-in % [:contents :type]) filters) node-list))))
-  
-  (defn build-initial-global-state
-      "Constructs an initial global state populated by fog"
-      [global-size]
-      (add-locs (into [] (map (fn [_] 
-         (into [] (map (fn [_] {:type "fog"}) (range global-size)))) (range global-size)))))
-
-  (defn add-to-state
-      "Update the global saved state with the given element and position"
-      [matrix elem]
-      (let [x (:x elem) 
-            y (:y elem)]
-        (assoc matrix y (assoc (nth matrix y) x elem))))
-  
-  (defn merge-global-state
-      "Add local state vision to global saved state. Position is that of the play which corresponds to (3,3) in local matrix"
-      [global-state local-state]
-        (let [local-nodes (filter-arena ((comp add-locs :arena) local-state)
-                                        "food" "poison" "open" "wood-barrier" "steel-barrier")
-              x-offset (mod (- (first (:global-coords local-state)) 3) arena-size)
-              y-offset (mod (- (second (:global-coords local-state)) 3) arena-size)
-              self      {:contents {:type "open"} 
-                         :x (first (:global-coords local-state)) 
-                         :y (second (:global-coords local-state))}]
-          (add-to-state (reduce #(
-                    let [x (mod (+ (:x %2) x-offset) arena-size)
-                         y (mod (+ (:y %2) y-offset) arena-size)
-                         elem (merge %2 {:x x :y y})]
-                    (add-to-state %1 elem)) global-state local-nodes) self)))
-                
-
-  (defn get-global-state
-      "Tries to fetch global arena from the saved state or constructs a new one"
-      [state & path]
-      (let [saved (get-in state path)
-            size  (first (:global-dimensions state))]
-        (if (nil? saved)
-          (build-initial-global-state size)
-          saved )))
 
   (defn get-direction
       "Get the current direction of your wombat from the 2d arena array"
@@ -144,7 +105,6 @@
               (filter shootable (filter-arena arena "zakano" "wombat"))]
             (not (empty? (filter #(not (and (= (:x %) (:x self)) (= (:y self) (:y %)))) shootable)))))
       ([dir arena] (can-shoot-enemy? dir arena {:x 3 :y 3})))
-  
   (defn can-shoot-barrier?
       "Returns true if there is a barrier within shooting range"
       ([dir arena self]
@@ -170,7 +130,7 @@
   (defn possible-points
       "Get all locations with possible points"
       ([arena self]
-        (remove #(and (= (:x %) (:x self)) (= (:y %) (:y self)))
+        (filter #(not (and (= (:x %) (:x self)) (= (:y %) (:y self))))
                 (filter-arena (add-locs arena)
                                "food" "wood-barrier" "steel-barrier" "zakano" "wombat")))
       ([arena]
@@ -179,7 +139,7 @@
   (defn possible-points-nowall
       "Get all locations with possible points"
       ([arena self]
-        (remove #(and (= (:x %) (:x self)) (= (:y %) (:y self)))
+        (filter #(not (and (= (:x %) (:x self)) (= (:y %) (:y self))))
                 (filter-arena (add-locs arena)
                                "food" "zakano" "wombat")))
       ([arena]
@@ -189,10 +149,10 @@
       "Returns a map containing {:x x, :y y}, where x and y are the coordinated directly in front"
       ([dir self]
         (case dir
-          "n" {:x (:x self) :y (mod (dec (:y self)) arena-size)}
-          "e" {:x (mod (inc (:x self)) arena-size) :y (:y self)}
-          "s" {:x (:x self) :y (mod (inc (:y self)) arena-size)}
-          "w" {:x (mod (dec (:x self)) arena-size) :y (:y self)}))
+          "n" {:x (:x self) :y (mod (dec (:y self)) 20)}
+          "e" {:x (mod (inc (:x self)) 20) :y (:y self)}
+          "s" {:x (:x self) :y (mod (inc (:y self)) 20)}
+          "w" {:x (mod (dec (:x self)) 20) :y (:y self)}))
       ([dir] front-tile dir {:x 3 :y 3}))
 
   (defn is-clear?
@@ -240,24 +200,23 @@
 
   (defn use-2block-sight
       "Cut the arena down to 5x5 from 7x7"
-      [arena]
-      (take 5 (rest (map #(take 5 (rest %)) arena))))
-  
+      ([arena]
+        
+      )
+
   (defn pick-move
       "Select the move to give the highest amount of points"
       [arena self]
       (if (can-shoot-enemy? (get-direction arena) (add-locs arena))
           (build-resp :shoot)
-          (if (empty? (filter-arena (use-2block-sight arena) "food"))
+          (if (empty? (filter-arena arena "food"))
               (if (can-shoot-barrier? (get-direction arena) (add-locs arena))
                   (build-resp :shoot)
-                  (move-to arena (get-direction arena) (select-target arena self) self))
+                  (move-to arena (get-direction arena) (select-target (use-2block-sight arena) self) self))
               (move-to arena (get-direction arena) (select-target-nowall arena self) self))))
 
     {:command (pick-move (:arena state) {:x 3 :y 3})
      :state {:move (pick-move (:arena state) {:x 3 :y 3})
-             :saved (merge-global-state (get-global-state state :saved-state :saved) state)
              :direction (get-direction (:arena state))
              :shootable (can-shoot-enemy? (get-direction (:arena state)) (add-locs (:arena state)))
              :distance (distance-to-tile (get-direction (:arena state)) {:x 4 :y 3})}})
-             
